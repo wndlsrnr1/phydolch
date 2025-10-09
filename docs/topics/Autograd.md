@@ -185,3 +185,38 @@ for step range(T):
 > "학습 루프 전체가 미분의 적분이다!"
 
 그 움직임이 쌓여 만들어진 학습된 모델이다.
+
+
+# Pytorch의 연산 저장 데이터 구조
+
+Pytorch의 autograd 시스템은 내부적으로 신경망의 각 layer(층) 연산 그래프 형태로 구성도니 노드(node)로 저장한다. 
+이 노드들은 데이터(텐서)와 연산(함수)를 동시에 표현하는 구조다. 
+
+1. Autograd는 Calculational graph 구조로 동작한다.
+- 각 연산의 합성 형태의 순서가 존재하고 그 연산의 원인이 존재한다. 
+
+2. 각 노드에는 두 가지 정보가 들어가 있다.
+- 데이터(content)
+- 연산자(grad_fn)
+
+3. Layer도 노드 집합으로 표현된다.
+
+```
+
+import torch.nn as nn
+
+model = nn.Sequential(
+    nn.Linear(3, 5),
+    nn.ReLU(),
+    nn.Linear(5, 1)
+)
+
+```
+
+x -> LinearBackward -> ReLUBackward -> LinearBackward -> output
+
+Node: 하나의 연산 또는 중간 결과
+Edge: 데이터가 전달되는 경로
+LeafNode: 사용자가 직접 만든 입력
+None-leaf Node: 연산을 통해 만들어진 결과
+
