@@ -143,17 +143,6 @@
    ]
   },
   {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
-    "### 2-1. Logistic Regression (베이스라인)\n",
-    "\n",
-    "**가장 간단한 모델**: 입력을 평탄화하고 바로 출력으로 연결\n",
-    "\n",
-    "**의미**: 28×28 = 784 픽셀을 각 클래스의 가중치와 내적 → 각 클래스 점수\n"
-   ]
-  },
-  {
    "cell_type": "code",
    "execution_count": null,
    "metadata": {},
