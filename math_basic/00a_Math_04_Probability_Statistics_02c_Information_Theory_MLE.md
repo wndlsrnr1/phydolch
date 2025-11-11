@@ -6,6 +6,45 @@
 # 2.2.5 정보 이론과 2.3 MLE
 ---
 
+## 기호 및 용어 정리
+
+이 문서에서 사용하는 모든 기호와 용어를 미리 정리해 둡니다. 각 섹션을 읽을 때 이 표를 참고하시면 이해가 훨씬 수월합니다.
+
+| 구분 | 기호 | 의미 | 비고 |
+|------|------|------|------|
+| **데이터셋** | $\mathcal{D} = \{(x_i, y_i)\}_{i=1}^n$ | $n$개의 데이터 쌍 | 모든 $(x_i, y_i)$는 **i.i.d.** (독립이고 동일 분포) |
+| **입력/출력** | $x_i$ | $i$번째 데이터의 입력 특징 (입력 벡터) | 예: 이미지, 텍스트, 특징 벡터 |
+| | $y_i$ | $i$번째 데이터의 정답 (타깃) | 회귀: 실수값, 분류: 클래스 레이블 |
+| **모형** | $f(x; \theta)$ | 입력 $x$를 받아 예측값을 출력하는 함수 | $\theta$는 모델의 파라미터 (가중치, 편향 등) |
+| | $\theta$ | 모델의 파라미터 (세타, Theta) | 학습을 통해 찾고자 하는 값 |
+| | $\hat{y}_i = f(x_i; \theta)$ | 모델의 예측값 | 실제 값 $y_i$와 비교 대상 |
+| **잡음 (회귀)** | $\epsilon_i$ | $i$번째 데이터의 오차 (에러, error) | $\epsilon_i \sim \mathcal{N}(0, \sigma^2)$ (정규분포) |
+| | $y_i = f(x_i; \theta) + \epsilon_i$ | 회귀 모델의 데이터 생성 과정 | 예측값 주변에 랜덤 오차가 더해짐 |
+| **확률/밀도** | $P(\cdot)$ | 이산형 확률 (Probability Mass Function, PMF) | 분류 문제에서 사용 |
+| | $p(\cdot)$ 또는 $P(\cdot)$ | 연속형 확률 밀도 (Probability Density Function, PDF) | 회귀 문제에서 사용 (밀도라고 명시) |
+| | $P(y_i \mid x_i, \theta)$ | 조건부 확률(밀도) | 파라미터 $\theta$가 주어졌을 때 $y_i$가 나올 확률(밀도) |
+| **우도** | $L(\theta \mid \mathcal{D})$ | 우도 함수 (Likelihood Function) | 데이터가 주어졌을 때 $\theta$의 함수 |
+| | $L(\theta) = \prod_{i=1}^n P(y_i \mid x_i, \theta)$ | 전체 데이터의 우도 | 독립 가정 하에서 각 확률의 곱 |
+| **로그우도** | $\ell(\theta) = \log L(\theta)$ | 로그 우도 함수 (Log-Likelihood) | $\ell(\theta) = \sum_{i=1}^n \log P(y_i \mid x_i, \theta)$ |
+| **손실** | $\text{NLL}(\theta) = -\ell(\theta)$ | 음의 로그 우도 (Negative Log-Likelihood) | 손실 함수로 사용 (최소화 목표) |
+| **합/곱** | $\sum_{i=1}^n$ | 합 (summation) | $\sum_{i=1}^n a_i = a_1 + a_2 + \cdots + a_n$ |
+| | $\prod_{i=1}^n$ | 곱 (product) | $\prod_{i=1}^n a_i = a_1 \times a_2 \times \cdots \times a_n$ |
+| **one-hot** | $y_{i,k} \in \{0, 1\}$ | $i$번째 데이터의 $k$번째 클래스 레이블 | 정답 클래스만 1, 나머지는 0 |
+| | $\sum_{k=1}^K y_{i,k} = 1$ | one-hot 벡터의 합은 1 | 정확히 하나의 클래스만 정답 |
+
+**중요한 가정**:
+- **i.i.d. (Independent and Identically Distributed)**: 모든 데이터 포인트 $(x_i, y_i)$는 서로 독립이고 동일한 분포를 따릅니다. 이는 학습 시 파라미터 $\theta$가 모든 샘플에서 공유됨을 의미합니다.
+
+**확률 vs 우도**:
+- **확률 (Probability)**: $P(y \mid x, \theta)$는 **$\theta$가 주어졌을 때** $y$가 나올 확률(밀도). 즉, **$y$의 함수**입니다.
+- **우도 (Likelihood)**: $L(\theta \mid \mathcal{D})$는 **데이터가 주어졌을 때** $\theta$의 그럴듯함. 즉, **$\theta$의 함수**입니다.
+
+**이산 vs 연속**:
+- **이산형 (분류)**: 확률 질량 함수 (PMF) 사용. $P(y_i = k \mid x_i, \theta)$는 확률값.
+- **연속형 (회귀)**: 확률 밀도 함수 (PDF) 사용. $p(y_i \mid x_i, \theta)$는 밀도값. **정확히 $y_i$가 나올 확률은 0**입니다 (연속형이므로).
+
+---
+
 ## 2.2.5 정보 이론 (Information Theory)
 
 **정보 이론 (Information Theory)이란?** 정보를 정량적으로 측정하는 이론이에요. "얼마나 놀라운가?", "얼마나 불확실한가?"를 숫자로 표현하는 거예요.
@@ -20,10 +59,19 @@
 **엔트로피란?** 확률변수 $X$가 만들어 내는 결과들의 **평균 정보량** 또는 **불확실성의 크기**를 수치로 표현한 값이에요. 결과를 맞히기 어렵게 만드는 분포일수록 엔트로피가 커지고, 언제나 같은 결과가 나오는 분포일수록 엔트로피가 0에 가까워져요.
 
 #### Step 0: 표현 정리부터!
+
+**이번 단계 목표**: 엔트로피를 이해하기 위한 기본 기호와 단위를 정리합니다.
+
 - $X$: 우리가 관심 있는 확률변수 (예: 동전을 던졌을 때의 앞/뒤)
 - $x_i$: $X$가 가질 수 있는 $i$번째 결과
 - $p_i = P(X = x_i)$: $i$번째 결과가 일어날 확률
 - $\log_b$: 밑이 $b$인 로그. 보통 밑을 2로 두면 단위가 **bit**, 자연로그($e$)를 쓰면 **nat**이 돼요.
+
+> **📌 엔트로피 단위**
+> 
+> - $\log_2$ → **bit** (binary digit): 이진 정보의 기본 단위
+> - $\log_e$ (또는 $\ln$) → **nat** (natural unit): 자연 단위
+> - 변환: $1$ nat = $\log_2(e)$ bit ≈ $1.443$ bit
 
 "평균 정보량"이란 말을 수식으로 담아내기 위해, 한 사건이 실제로 발생했을 때 느끼는 놀라움(정보량)을 먼저 정의해야 해요.
 
@@ -77,6 +125,8 @@ $$H(X) = E[I(X)] = \sum_{i=1}^n p_i \cdot I(x_i) = -\sum_{i=1}^n p_i \log p_i$$
 이제 엔트로피 공식을 봐도, 각 기호가 무엇을 뜻하고 왜 이런 형태가 되었는지 자연스럽게 납득할 수 있을 거예요. 엔트로피는 결국 "분포가 얼마나 예측하기 어려운가?"를 수치로 요약한 값이랍니다.
 ### 2.2.5.2 교차 엔트로피 (Cross-Entropy, Cross Entropy)
 
+**이번 단계 목표**: 실제 분포 $p$와 모델 분포 $q$의 차이를 측정하는 교차 엔트로피를 이해하고, 왜 이것이 손실 함수로 사용되는지 파악합니다.
+
 **교차 엔트로피란?** 실제로 데이터가 따르는 분포 $p$를, 모델이 만들어 낸 분포 $q$를 사용해 코딩하려고 할 때 필요한 **평균 정보량**이에요. 즉, $q$가 $p$를 얼마나 잘 흉내 내는지를 숫자로 평가하는 척도죠.
 
 #### Step 0: 기호 정리
@@ -124,6 +174,8 @@ $$H(p, q) = -1 \cdot \log 0.7 - 0 \cdot \log 0.2 - 0 \cdot \log 0.1 = -\log 0.7 
 
 이제 교차 엔트로피의 기호 하나하나가 무엇을 의미하는지, 왜 $p$와 $q$를 이렇게 비교하는지 훨씬 명확해졌을 거예요.
 ### 2.2.5.3 KL 발산 (Kullback-Leibler Divergence, KL Divergence)
+
+**이번 단계 목표**: 두 분포의 차이를 측정하는 KL 발산을 이해하고, 교차 엔트로피와의 관계를 파악합니다.
 
 **KL 발산이란?** "실제 분포 $p$가, 모델 분포 $q$를 보고 느끼는 추가 놀라움"이에요. $p$ 기준에서 $q$가 얼마나 비효율적인지를 측정하는 비대칭 척도죠.
 
@@ -198,6 +250,8 @@ $$D_{KL}(p \|\| q) = 0.5 \log \frac{0.5}{0.9} + 0.5 \log \frac{0.5}{0.1} \approx
 
 ## 2.3 최대우도 추정 (Maximum Likelihood Estimation, MLE)
 
+**이번 단계 목표**: 데이터를 가장 잘 설명하는 모델 파라미터를 찾는 MLE의 원리를 이해하고, 이것이 손실 함수(MSE, CrossEntropy)의 이론적 기반임을 파악합니다.
+
 **MLE (Maximum Likelihood Estimation, 최대우도 추정)가 뭔가요?** 데이터를 가장 잘 설명하는 모델의 파라미터 (Parameter)를 찾는 방법이에요. "이 데이터가 나올 가능성이 가장 높은 파라미터는 뭐야?"를 찾는 거예요.
 
 **머신러닝에서의 의미**:
@@ -217,11 +271,20 @@ $$D_{KL}(p \|\| q) = 0.5 \log \frac{0.5}{0.9} + 0.5 \log \frac{0.5}{0.1} \approx
 - 예: $X$는 "동전을 던졌을 때 나올 결과" (앞 또는 뒤), $x = 1$은 "앞면이 나왔다"는 관측 결과
 
 **주요 기호**:
-- $\mathbf{x} = (x_1, x_2, \ldots, x_n)$: 관측된 데이터 (observed data). 소문자 $\mathbf{x}$는 이미 관측된 구체적인 값들을 나타내요.
+- **데이터 쌍**: $(x_i, y_i)$는 **한 개의 데이터 쌍**입니다.
+  - $x_i$: $i$번째 데이터의 입력 특징 (예: 이미지, 특징벡터)
+  - $y_i$: $i$번째 데이터의 정답 (회귀: 실수값, 분류: 클래스 레이블)
+  - 예: $(x_1, y_1)$ = (이미지1, 고양이), $(x_2, y_2)$ = (이미지2, 개)
+- $\mathcal{D} = \{(x_i, y_i)\}_{i=1}^n$: 전체 데이터셋 ($n$개의 데이터 쌍)
 - $\theta$ (세타, Theta): 모델의 파라미터 (parameter). 예를 들어 정규분포의 평균 $\mu$, 베르누이 분포의 성공 확률 $p$, 로지스틱 회귀의 가중치 벡터 등이에요.
-- $P(x_i \,|\, \theta)$: 파라미터 $\theta$가 주어졌을 때 데이터 $x_i$가 나올 **확률 (Probability)**
-- $L(\theta \,|\, \mathbf{x})$: 데이터 $\mathbf{x}$가 주어졌을 때 파라미터 $\theta$의 **우도 (Likelihood)**
-  - **주의**: $L(\theta)$와 $L(\theta \,|\, \mathbf{x})$는 같은 함수를 나타내지만, $|\, \mathbf{x}$는 "데이터가 주어졌을 때"라는 조건을 명시적으로 나타내요.
+- $P(y_i \mid x_i, \theta)$: 파라미터 $\theta$가 주어졌을 때, 입력 $x_i$에 대해 $y_i$가 나올 **확률(밀도)**. 
+  - **주의**: 이는 **$y_i$의 함수**입니다 (확률 관점).
+  - **지도학습**: 우리는 $P(y \mid x, \theta)$를 모델링합니다 (판별모형, Discriminative Model).
+- $L(\theta \mid \mathcal{D})$: 데이터 $\mathcal{D}$가 주어졌을 때 파라미터 $\theta$의 **우도 (Likelihood)**.
+  - **주의**: 이는 **$\theta$의 함수**입니다 (우도 관점).
+  - $L(\theta)$와 $L(\theta \mid \mathcal{D})$는 같은 함수를 나타내지만, $|\, \mathcal{D}$는 "데이터가 주어졌을 때"라는 조건을 명시적으로 나타내요.
+- $\hat{y}_i = f(x_i; \theta)$: 모델의 예측값 (회귀에서 사용)
+- $\epsilon_i = y_i - \hat{y}_i$: 예측 오차 (회귀에서 사용)
 - $\hat{\theta}$ (세타 햇): 추정된 파라미터 값. 위에 "hat" 표기($\hat{}$)는 "추정값 (estimate)"을 의미해요.
   - 예: $\theta$는 참값 (true value), $\hat{\theta}$는 추정값 (estimated value)
 - $\arg\max$: 함수를 최대화하는 입력값을 찾는 연산자 (argmax operator)
@@ -229,10 +292,18 @@ $$D_{KL}(p \|\| q) = 0.5 \log \frac{0.5}{0.9} + 0.5 \log \frac{0.5}{0.1} \approx
   - $\arg\max_\theta f(\theta)$: 함수 $f(\theta)$를 가장 크게 만드는 $\theta$ 값
   - 예: $f(x) = -(x-3)^2 + 5$에서 $\max f(x) = 5$, $\arg\max f(x) = 3$
 
-**문제 상황**:
-우리는 이미 데이터 $\mathbf{x}$를 관측했어요. 하지만 이 데이터를 생성한 모델의 파라미터 $\theta$는 알 수 없어요. 질문: "어떤 $\theta$여야 지금 본 데이터가 가장 자연스럽게 나왔을까?"
+> **📌 생성모형 vs 판별모형**
+> 
+> - **생성모형 (Generative Model)**: $P(x, y \mid \theta)$를 모델링. 입력 $x$와 출력 $y$의 결합 분포를 학습.
+> - **판별모형 (Discriminative Model)**: $P(y \mid x, \theta)$를 모델링. 입력 $x$가 주어졌을 때 출력 $y$의 조건부 분포를 학습.
+> - **지도학습**: 대부분의 경우 **판별모형**을 사용합니다. 즉, $P(y \mid x, \theta)$를 모델링합니다.
 
-**예시**: 시험 점수 $[85, 90, 88, 92]$를 봤을 때, 이 점수들이 평균이 10인 정규분포에서 나왔을 가능성보다 평균이 90 근처인 정규분포에서 나왔을 가능성이 훨씬 높아 보이죠.
+**문제 상황**:
+우리는 이미 데이터 $\mathcal{D} = \{(x_i, y_i)\}_{i=1}^n$를 관측했어요. 하지만 이 데이터를 생성한 모델의 파라미터 $\theta$는 알 수 없어요. 질문: "어떤 $\theta$여야 지금 본 데이터가 가장 자연스럽게 나왔을까?"
+
+**예시**: 
+- **회귀**: 시험 점수 $[85, 90, 88, 92]$를 봤을 때, 이 점수들이 평균이 10인 정규분포에서 나왔을 가능성보다 평균이 90 근처인 정규분포에서 나왔을 가능성이 훨씬 높아 보이죠.
+- **분류**: 이미지들이 고양이/개로 레이블되어 있을 때, 모델이 각 이미지에 대해 고양이/개 확률을 출력합니다.
 
 #### Step 1: 왜 우도함수를 생각하는가? - 확률과 우도의 차이
 
@@ -256,37 +327,49 @@ $$D_{KL}(p \|\| q) = 0.5 \log \frac{0.5}{0.9} + 0.5 \log \frac{0.5}{0.1} \approx
 | **구하는 것** | 데이터 $x$가 나올 가능성 | 파라미터 $\theta$가 맞을 가능성 |
 | **관점** | "$\theta$를 알면 $x$는?" | "$x$를 봤을 때 $\theta$는?" |
 | **용도** | 예측, 시뮬레이션 | 추정 (Estimation), 학습 |
+| **함수의 입력** | **$x$의 함수** (데이터의 함수) | **$\theta$의 함수** (파라미터의 함수) |
 
 **왜 우도함수가 필요한가?**
 - 우리는 데이터를 이미 봤어요. 이제 "이 데이터를 가장 잘 설명하는 모델 파라미터"를 찾고 싶어요.
 - 우도함수는 각 파라미터 값이 얼마나 "그럴듯한지"를 숫자로 보여줘요.
 - 우도가 큰 $\theta$ = 이 데이터가 나올 가능성이 높은 $\theta$ = 우리가 찾고 싶은 $\theta$
 
+> **📌 확률 vs 우도 - 한 칸 요약**
+> 
+> - **확률 (Probability)**: $P(y \mid x, \theta)$ = "$\theta$가 주어졌을 때 이 데이터가 나올 법함". 즉, **데이터 $y$의 함수**입니다.
+> - **우도 (Likelihood)**: $L(\theta \mid \mathcal{D}) = \prod_i P(y_i \mid x_i, \theta)$ = "이 데이터를 가장 그럴듯하게 만드는 $\theta$는 무엇인가". 즉, **파라미터 $\theta$의 함수**입니다.
+> - **최적화**: **우도 최대화** ↔ **로그우도 최대화** ↔ **음의 로그우도(NLL) 최소화**.
+
 #### Step 2: 우도함수 정의 및 수식
+
+**이번 단계 목표**: 지도학습에서 우도함수를 어떻게 정의하는지, 그리고 독립 가정 하에서 어떻게 단순화되는지 이해합니다.
 
 **우도함수 (Likelihood Function) 정의**:
 
-$$L(\theta \,|\, \mathbf{x}) = P(x_1, x_2, \ldots, x_n \,|\, \theta)$$
+지도학습에서는 판별모형을 사용하므로, 조건부 확률을 사용합니다:
+
+$$L(\theta \mid \mathcal{D}) = P(y_1, y_2, \ldots, y_n \mid x_1, x_2, \ldots, x_n, \theta)$$
 
 **기호 설명**:
-- $L(\theta \,|\, \mathbf{x})$: 우도함수. 데이터 $\mathbf{x}$가 주어졌을 때 파라미터 $\theta$의 함수예요.
-- $P(x_1, x_2, \ldots, x_n \,|\, \theta)$: 파라미터 $\theta$가 주어졌을 때 모든 데이터가 동시에 나올 확률
+- $L(\theta \mid \mathcal{D})$: 우도함수. 데이터 $\mathcal{D}$가 주어졌을 때 파라미터 $\theta$의 함수예요. 즉, **$\theta$의 함수**입니다.
+- $P(y_1, y_2, \ldots, y_n \mid x_1, x_2, \ldots, x_n, \theta)$: 파라미터 $\theta$와 입력 $x_1, \ldots, x_n$이 주어졌을 때 모든 출력 $y_1, \ldots, y_n$이 동시에 나올 확률(밀도)
 - $|$ (수직선): "조건부"를 의미. 왼쪽이 오른쪽 조건 하에서 계산됨을 나타내요.
 
-**주의**: 수학적으로는 $L(\theta \,|\, \mathbf{x})$와 $P(\mathbf{x} \,|\, \theta)$가 같은 값을 가져요. 하지만 **의미가 다릅니다**:
-- $P(\mathbf{x} \,|\, \theta)$: 확률 관점 - "$\theta$를 알면 $\mathbf{x}$가 나올 확률은?"
-- $L(\theta \,|\, \mathbf{x})$: 우도 관점 - "$\mathbf{x}$를 봤을 때 $\theta$의 그럴듯함은?"
+**주의**: 수학적으로는 $L(\theta \mid \mathcal{D})$와 $P(\mathbf{y} \mid \mathbf{x}, \theta)$가 같은 값을 가져요. 하지만 **의미가 다릅니다**:
+- $P(\mathbf{y} \mid \mathbf{x}, \theta)$: 확률 관점 - "$\theta$를 알면 $\mathbf{y}$가 나올 확률(밀도)은?" 즉, **$\mathbf{y}$의 함수**입니다.
+- $L(\theta \mid \mathcal{D})$: 우도 관점 - "$\mathcal{D}$를 봤을 때 $\theta$의 그럴듯함은?" 즉, **$\theta$의 함수**입니다.
 
-**독립성 가정**:
-데이터 포인트들이 서로 독립적이라면, 전체 확률은 각 확률의 곱이에요:
+**i.i.d. 가정 (Independent and Identically Distributed)**:
+모든 데이터 포인트 $(x_i, y_i)$는 서로 **독립이고 동일한 분포**를 따릅니다. 이 가정 하에서 전체 확률(밀도)은 각 확률(밀도)의 곱이에요:
 
-$$L(\theta \,|\, \mathbf{x}) = \prod_{i=1}^n P(x_i \,|\, \theta)$$
+$$L(\theta \mid \mathcal{D}) = \prod_{i=1}^n P(y_i \mid x_i, \theta)$$
 
 여기서 $\prod$ (파이, Pi)는 곱하기 기호예요. $\prod_{i=1}^n a_i = a_1 \times a_2 \times \cdots \times a_n$
 
 **직관적 이해**:
-- 각 데이터 포인트 $x_i$가 나올 확률을 모두 곱하면, 전체 데이터가 동시에 나올 확률이 나와요.
+- 각 데이터 포인트 $(x_i, y_i)$가 나올 확률(밀도)을 모두 곱하면, 전체 데이터가 동시에 나올 확률(밀도)이 나와요.
 - 이 값이 클수록, 파라미터 $\theta$가 이 데이터를 잘 설명한다는 뜻이에요.
+- i.i.d. 가정은 학습 시 파라미터 $\theta$가 모든 샘플에서 공유됨을 의미합니다.
 
 #### Step 3: 최대우도 추정의 목표
 
@@ -959,86 +1042,105 @@ $$\hat{\theta}_{\text{MLE}} \sim \mathcal{N}\left(\theta, \frac{1}{nI(\theta)}\r
 
 ### 2.3.4 MSE Loss의 완전한 유도 과정
 
-**목표**: "오차가 정규분포를 따른다"는 가정에서 MSE Loss가 어떻게 나오는지 단계별로 보여드립니다.
+**이번 단계 목표**: "왜 MSE를 최소화하나요?"를 **정규 잡음 가정 한 줄**에서 **제곱오차 합**까지 4단계로 명확히 연결합니다.
 
 **머신러닝 연결**: 회귀 문제에서 가장 많이 사용하는 손실 함수의 이론적 근거를 보여드립니다.
 
-#### Step 1: 독립 가정 (Independence Assumption)
+**중요**: 회귀 문제는 **연속형**이므로 확률 **밀도 함수 (PDF)**를 사용합니다. **정확히 $y_i$가 나올 확률은 0**입니다 (연속형이므로).
 
-데이터 포인트들이 서로 독립이라고 가정:
+#### 4단계 요약 표
 
-$$P(y_1, y_2, ..., y_n | x_1, ..., x_n, \theta) = \prod_{i=1}^n P(y_i | x_i, \theta)$$
+| 단계 | 내용 | 수식 |
+|------|------|------|
+| **1. 데이터 생성 가정 (연속형)** | 회귀 모델: 예측값 주변에 정규 잡음이 더해짐 | $y_i = f(x_i; \theta) + \epsilon_i$, $\epsilon_i \sim \mathcal{N}(0, \sigma^2)$ |
+| **2. 한 점의 확률밀도** | 정규분포의 PDF 사용 | $p(y_i \mid x_i, \theta) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp\left(-\frac{(y_i - f(x_i; \theta))^2}{2\sigma^2}\right)$ |
+| **3. 모든 데이터의 우도 (i.i.d.)** | 독립 가정 하에서 각 밀도의 곱 → 로그우도 | $L(\theta) = \prod_{i=1}^n p(y_i \mid x_i, \theta)$ → $\ell(\theta) = \sum_{i=1}^n \log p(y_i \mid x_i, \theta)$ |
+| **4. 로그우도 최대화 ≡ 제곱오차 최소화** | 상수 제거 후 MSE 등장 | $\ell(\theta) = \text{const} - \frac{1}{2\sigma^2}\sum_{i=1}^n (y_i - f(x_i; \theta))^2$ |
 
-**이 공식이 표현하는 것**: 
-- 왼쪽: **모든 데이터 $(y_1, y_2, ..., y_n)$가 동시에 나올 확률**
-- 오른쪽: **각 데이터 포인트가 나올 확률들을 모두 곱한 값**
+---
 
-**직관적 이해**:
+#### Step 1: 데이터 생성 가정 (연속형)
 
-**비유: 동전을 3번 던질 때**
-- 동전 던지기는 서로 독립 (첫 번째 결과가 두 번째 결과에 영향 없음)
-- 앞면이 나올 확률 = $\frac{1}{2}$
+**이번 단계 목표**: 회귀 문제에서 데이터가 어떻게 생성되는지, 그리고 왜 연속형 밀도를 사용하는지 이해합니다.
 
-전체 확률 = 각 시행 확률의 곱:
-$$P(\text{앞, 앞, 앞}) = P(\text{앞}) \times P(\text{앞}) \times P(\text{앞}) = \frac{1}{2} \times \frac{1}{2} \times \frac{1}{2} = \frac{1}{8}$$
+**회귀 모델의 데이터 생성 과정**:
 
-**머신러닝에서의 의미**:
-
-데이터가 3개 있다고 가정: $(x_1, y_1), (x_2, y_2), (x_3, y_3)$
-
-**독립 가정**: 데이터 포인트들이 서로 영향을 주지 않는다
-- $y_1$의 값이 $y_2$의 확률에 영향을 주지 않음
-- 각 데이터는 독립적으로 발생
-
-**공식의 의미**:
-$$P(y_1, y_2, y_3 | x_1, x_2, x_3, \theta) = P(y_1 | x_1, \theta) \times P(y_2 | x_2, \theta) \times P(y_3 | x_3, \theta)$$
-
-**왜 곱셈인가?**
-- 독립 사건이 동시에 일어날 확률 = 각 확률의 곱
-- 동전을 3번 던져 모두 앞면이 나올 확률 = $\frac{1}{2} \times \frac{1}{2} \times \frac{1}{2}$
-- 마찬가지로, 모든 데이터가 동시에 나올 확률 = 각 데이터 확률의 곱
+$$y_i = f(x_i; \theta) + \epsilon_i, \quad \epsilon_i \sim \mathcal{N}(0, \sigma^2)$$
 
 **기호 설명**:
-- $\prod$ (파이, Pi): 곱하기 기호 (Σ는 합이었다면, $\prod$는 곱)
-  - $\prod_{i=1}^n a_i = a_1 \times a_2 \times \cdots \times a_n$
-- $\theta$ (세타, Theta): 모델의 파라미터 (가중치, 편향 등)
-- $P(y_i | x_i, \theta)$: $x_i$가 주어졌을 때 모델 파라미터 $\theta$에서 $y_i$가 나올 확률
+- $f(x_i; \theta)$: 모델의 예측값 $\hat{y}_i$ (파라미터 $\theta$로 결정됨)
+- $\epsilon_i$: $i$번째 데이터의 오차 (에러, error)
+  - **의미**: 측정 오차 또는 모형 오차. 예측값 주변으로 평균 0, 분산 $\sigma^2$의 랜덤 오차가 더해집니다.
+- $\epsilon_i \sim \mathcal{N}(0, \sigma^2)$: 오차가 정규분포를 따름
 
-#### Step 2: 정규분포 가정 (Normal Distribution Assumption)
+**중요한 가정**:
+- **i.i.d. (Independent and Identically Distributed)**: 모든 데이터 포인트 $(x_i, y_i)$는 서로 독립이고 동일한 분포를 따릅니다.
+- **연속형**: $y_i$는 연속형 변수이므로 **확률 밀도 함수 (PDF)**를 사용합니다.
+  - **주의**: 연속형에서는 **정확히 $y_i$가 나올 확률은 0**입니다. 대신 밀도값 $p(y_i \mid x_i, \theta)$를 사용합니다.
 
-회귀 모델: $y_i = f(x_i; \theta) + \epsilon_i$, 여기서 오차 $\epsilon_i \sim \mathcal{N}(0, \sigma^2)$
+**직관적 이해**:
+- 모델이 $f(x_i; \theta) = 90$을 예측했다면, 실제 값은 $90$ 주변으로 분산되어 나타납니다.
+- 예: $y_i = 90 + \epsilon_i$에서 $\epsilon_i$가 평균 0, 표준편차 5인 정규분포를 따르면, 대부분의 값이 $85 \sim 95$ 사이에 분포합니다.
 
-각 데이터 포인트의 확률 밀도 함수 (PDF):
+#### Step 2: 한 점의 확률밀도
 
-$$P(y_i | x_i, \theta) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp\left(-\frac{(y_i - f(x_i; \theta))^2}{2\sigma^2}\right)$$
+**이번 단계 목표**: 정규분포 가정 하에서 한 데이터 포인트의 확률 밀도를 구합니다.
 
-**의미**: 모델이 $f(x_i; \theta)$를 예측할 때, 실제 값 $y_i$가 나올 확률
+**정규분포의 확률 밀도 함수 (PDF)**:
 
-#### Step 3: 우도 함수 (Likelihood Function) 계산
+$$p(y_i \mid x_i, \theta) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp\left(-\frac{(y_i - f(x_i; \theta))^2}{2\sigma^2}\right)$$
 
-모든 데이터에 대한 우도:
+**기호 설명**:
+- $\frac{1}{\sqrt{2\pi\sigma^2}}$: 정규화 상수 (normalization constant). 확률 밀도의 적분이 1이 되도록 하는 값이에요.
+- $\exp$: 자연상수 $e$의 거듭제곱, $e^x$
+- $(y_i - f(x_i; \theta))^2$: 데이터와 예측값의 차이의 제곱 (제곱 오차, squared error)
+- $\frac{(y_i - f(x_i; \theta))^2}{2\sigma^2}$: 표준화된 제곱 오차. 분산으로 나눠서 스케일을 맞춘 거예요.
 
-$$L(\theta | \mathbf{y}, \mathbf{x}) = \prod_{i=1}^n \frac{1}{\sqrt{2\pi\sigma^2}} \exp\left(-\frac{(y_i - f(x_i; \theta))^2}{2\sigma^2}\right)$$
+**의미**: 
+- 평균이 $f(x_i; \theta)$인 정규분포에서 값 $y_i$가 나올 확률 밀도예요.
+- $(y_i - f(x_i; \theta))^2$가 작을수록 (데이터가 예측값에 가까울수록) 밀도가 커져요.
 
-#### Step 4: 로그 우도 (Log-Likelihood)로 변환
+**중요**: 이것은 **확률값이 아니라 밀도값**입니다. 연속형이므로 정확히 $y_i$가 나올 확률은 0이지만, 밀도값은 의미가 있습니다.
 
-로그를 취하면 곱셈이 덧셈으로 변환:
+#### Step 3: 모든 데이터의 우도 (i.i.d. 가정)
 
-$$\log L(\theta) = \sum_{i=1}^n \log \left( \frac{1}{\sqrt{2\pi\sigma^2}} \exp\left(-\frac{(y_i - f(x_i; \theta))^2}{2\sigma^2}\right) \right)$$
+**이번 단계 목표**: i.i.d. 가정 하에서 전체 데이터의 우도를 구하고, 로그우도로 변환합니다.
+
+**i.i.d. 가정**:
+모든 데이터 포인트 $(x_i, y_i)$는 서로 **독립이고 동일한 분포**를 따릅니다. 이 가정 하에서 전체 확률 밀도는 각 밀도의 곱이에요:
+
+$$P(y_1, y_2, \ldots, y_n \mid x_1, x_2, \ldots, x_n, \theta) = \prod_{i=1}^n p(y_i \mid x_i, \theta)$$
+
+**우도 함수**:
+
+$$L(\theta \mid \mathcal{D}) = \prod_{i=1}^n \frac{1}{\sqrt{2\pi\sigma^2}} \exp\left(-\frac{(y_i - f(x_i; \theta))^2}{2\sigma^2}\right)$$
+
+**로그 우도로 변환**:
+
+로그를 취하면 곱셈이 덧셈으로 변환됩니다:
+
+$$\ell(\theta) = \log L(\theta) = \sum_{i=1}^n \log \left( \frac{1}{\sqrt{2\pi\sigma^2}} \exp\left(-\frac{(y_i - f(x_i; \theta))^2}{2\sigma^2}\right) \right)$$
 
 $$= \sum_{i=1}^n \left[ -\frac{1}{2}\log(2\pi\sigma^2) - \frac{(y_i - f(x_i; \theta))^2}{2\sigma^2} \right]$$
 
 $$= -\frac{n}{2}\log(2\pi\sigma^2) - \frac{1}{2\sigma^2}\sum_{i=1}^n (y_i - f(x_i; \theta))^2$$
 
-#### Step 5: 상수 제거 및 손실 함수로 변환
+**왜 로그를 취하는가?**
+1. 수치적 안정성: 여러 밀도값을 곱하면 매우 작은 수가 되어 언더플로 발생 가능
+2. 미분 용이성: 곱셈 형태보다 덧셈 형태가 미분하기 쉬움
+3. 최적화 목표 불변: 로그는 단조증가 함수이므로 최댓값을 만드는 $\theta$는 동일
 
-**MLE 목표**: $\hat{\theta} = \arg\max_\theta \log L(\theta)$
+#### Step 4: 로그우도 최대화 ≡ 제곱오차 최소화
 
-$\sigma^2$가 고정되어 있다면, 첫 번째 항 $-\frac{n}{2}\log(2\pi\sigma^2)$는 상수:
+**이번 단계 목표**: 상수항을 제거하여 로그우도 최대화가 제곱오차 최소화와 동일함을 보입니다.
 
-$$\arg\max_\theta \log L(\theta) = \arg\max_\theta \left[ -\frac{1}{2\sigma^2}\sum_{i=1}^n (y_i - f(x_i; \theta))^2 \right]$$
+**MLE 목표**: $\hat{\theta} = \arg\max_\theta \ell(\theta)$
 
-음수 곱하기와 상수 $\frac{1}{2\sigma^2}$ 제거하면:
+$\sigma^2$가 고정되어 있다면, 첫 번째 항 $-\frac{n}{2}\log(2\pi\sigma^2)$는 $\theta$와 무관한 상수입니다:
+
+$$\arg\max_\theta \ell(\theta) = \arg\max_\theta \left[ -\frac{1}{2\sigma^2}\sum_{i=1}^n (y_i - f(x_i; \theta))^2 \right]$$
+
+음수와 상수 $\frac{1}{2\sigma^2}$를 제거하면 (최댓값을 만드는 $\theta$는 동일):
 
 $$= \arg\min_\theta \sum_{i=1}^n (y_i - f(x_i; \theta))^2$$
 
@@ -1048,6 +1150,17 @@ $$\text{MSE} = \frac{1}{n}\sum_{i=1}^n (y_i - \hat{y}_i)^2$$
 
 여기서 $\hat{y}_i = f(x_i; \theta)$는 모델의 예측값이에요.
 
+**핵심 통찰**:
+- **정규 가정 → 로그우도 → 상수 제거 → 제곱오차 합**
+- $\ell(\theta)$를 **최대**로 만드는 $\theta$는 $\sum (y_i - \hat{y}_i)^2$를 **최소**로 만드는 $\theta$와 동일합니다.
+- 즉, **MSE를 작게 하는 것**이 **MLE**와 같습니다.
+
+> **📌 정규 가정 실패 시**
+> 
+> 실제 오차가 정규분포를 따르지 않을 때 (이상치가 많을 때) MSE는 취약합니다. 대안:
+> - **MAE (Mean Absolute Error)**: 라플라스 분포 가정. $L_1$ 손실. 이상치에 더 강함.
+> - **Huber Loss**: 정규분포와 라플라스 분포의 중간. 작은 오차는 제곱, 큰 오차는 절댓값 사용.
+
 **요약**:
 - 정규분포 가정 → MLE → MSE Loss
 - 오차가 정규분포를 따르면 MSE Loss가 최적의 선택
@@ -1055,68 +1168,142 @@ $$\text{MSE} = \frac{1}{n}\sum_{i=1}^n (y_i - \hat{y}_i)^2$$
 
 ### 2.3.5 CrossEntropy Loss의 완전한 유도 과정
 
-**목표**: "레이블이 다항분포를 따른다"는 가정에서 CrossEntropy Loss가 어떻게 나오는지 보여드립니다.
+**이번 단계 목표**: "one-hot이 왜 정답만 남기는가"를 수식적으로 명확히 보여주고, 다항분포 가정에서 CrossEntropy Loss가 어떻게 나오는지 5단계로 유도합니다.
 
 **머신러닝 연결**: 분류 문제에서 가장 많이 사용하는 손실 함수의 이론적 근거를 보여드립니다.
 
-#### Step 1: 독립 가정 및 다항 분포 가정
+**중요**: 분류 문제는 **이산형**이므로 확률 **질량 함수 (PMF)**를 사용합니다.
 
-각 데이터 포인트의 레이블이 독립적이고, 다항 분포를 따른다고 가정:
+#### 5단계 요약
 
-$$P(y_1, ..., y_n | x_1, ..., x_n, \theta) = \prod_{i=1}^n P(y_i | x_i, \theta)$$
+| 단계 | 내용 | 수식 |
+|------|------|------|
+| **1. 모형 출력 (소프트맥스)** | 모델이 각 클래스에 대한 확률을 출력 | $\hat{p}_{i,k} = P(y_i = k \mid x_i, \theta)$, $\sum_k \hat{p}_{i,k} = 1$ |
+| **2. 정답 벡터 (one-hot)** | 정답 클래스만 1, 나머지는 0 | $y_{i,k} \in \{0, 1\}$, $\sum_k y_{i,k} = 1$ |
+| **3. 우도 (다항분포)** | one-hot의 지수 형태로 우도 표현 | $P(y_i \mid x_i, \theta) = \prod_k \hat{p}_{i,k}^{y_{i,k}} = \hat{p}_{i,k^*}$ |
+| **4. 로그우도 합** | 모든 데이터의 로그우도 합 | $\ell(\theta) = \sum_i \sum_k y_{i,k} \log \hat{p}_{i,k}$ |
+| **5. 손실로 전환** | 최대화 → 최소화, CrossEntropy 등장 | $\text{CE} = -\frac{1}{n}\sum_{i,k} y_{i,k} \log \hat{p}_{i,k}$ |
 
-**이 공식의 의미** (MSE 유도 Step 1 참조):
-- 모든 데이터 레이블 $(y_1, ..., y_n)$이 동시에 나올 확률
-- 각 데이터 포인트의 확률을 곱한 값
-- 독립 사건이므로 곱셈 사용
+---
+
+#### Step 1: 모형 출력 (소프트맥스)
+
+**이번 단계 목표**: 분류 모델이 어떻게 확률 분포를 출력하는지 이해합니다.
+
+**모델 출력**:
+- 모델은 입력 $x_i$에 대해 각 클래스 $k = 1, 2, \ldots, K$에 대한 확률을 출력합니다.
+- 소프트맥스 함수를 통해 확률 분포로 변환:
+
+$$\hat{p}_{i,k} = P(y_i = k \mid x_i, \theta), \quad \sum_{k=1}^K \hat{p}_{i,k} = 1$$
+
+**기호 설명**:
+- $\hat{p}_{i,k}$: $i$번째 데이터가 클래스 $k$일 확률 (모델 예측)
+- $\sum_{k=1}^K \hat{p}_{i,k} = 1$: 모든 클래스 확률의 합은 1 (확률 분포)
 
 **예시**: 
-- 데이터 1: 이미지가 고양이일 확률 $P(y_1 | x_1, \theta) = 0.9$
-- 데이터 2: 이미지가 개일 확률 $P(y_2 | x_2, \theta) = 0.8$
-- 두 데이터가 동시에 나올 확률 = $0.9 \times 0.8 = 0.72$
+- 3개 클래스 (고양이, 개, 새) 분류
+- 모델 출력: $\hat{p}_i = [0.7, 0.2, 0.1]$ (고양이 70%, 개 20%, 새 10%)
 
-분류 문제에서 실제 레이블은 one-hot 벡터: $y_i = [0, ..., 1, ..., 0]$ (정답 클래스만 1)
+#### Step 2: 정답 벡터 (one-hot)
 
-모델이 예측한 확률 분포: $\hat{p}_i = [\hat{p}_{i,1}, ..., \hat{p}_{i,K}]$ (소프트맥스 출력, 합은 1)
+**이번 단계 목표**: one-hot 인코딩의 수학적 정의와 성질을 이해합니다.
 
-#### Step 2: 다항 분포의 확률
+**one-hot 정의**:
 
-실제 레이블 $y_i$가 나올 확률:
+$$y_{i,k} \in \{0, 1\}, \quad \sum_{k=1}^K y_{i,k} = 1$$
 
-$$P(y_i | x_i, \theta) = \prod_{k=1}^K (\hat{p}_{i,k})^{y_{i,k}}$$
+**기호 설명**:
+- $y_{i,k}$: $i$번째 데이터의 $k$번째 클래스 레이블
+- $y_{i,k} \in \{0, 1\}$: 각 원소는 0 또는 1
+- $\sum_{k=1}^K y_{i,k} = 1$: 정확히 하나의 클래스만 정답 (합이 1)
 
-**의미**: one-hot 벡터에서 $y_{i,k} = 1$인 정답 클래스 $k^*$만 남고 나머지는 $y_{i,k} = 0$입니다:
-- 정답 클래스 $k^*$: $(\hat{p}_{i,k^*})^{1} = \hat{p}_{i,k^*}$
-- 나머지 클래스 $k \neq k^*$: $(\hat{p}_{i,k})^{0} = 1$ (어떤 수의 0제곱은 1)
+**의미**:
+- 정답 클래스 $k^*$에서만 $y_{i,k^*} = 1$
+- 나머지 클래스 $k \neq k^*$에서는 $y_{i,k} = 0$
 
-따라서:
+**예시**:
+- 정답이 "고양이" (클래스 1)인 경우: $y_i = [1, 0, 0]$
+- 정답이 "개" (클래스 2)인 경우: $y_i = [0, 1, 0]$
 
-$$P(y_i | x_i, \theta) = \hat{p}_{i,k^*}$$
+> **📌 one-hot 정의**
+> 
+> - $y_{i,k} \in \{0, 1\}$: 각 원소는 0 또는 1
+> - $\sum_{k=1}^K y_{i,k} = 1$: 정확히 하나의 클래스만 정답
+> - 정답 좌표만 1, 나머지는 0
 
-여기서 $k^*$는 실제 정답 클래스예요.
+#### Step 3: 우도 (다항분포 한 번 시행)
 
-#### Step 3: 로그 우도 계산
+**이번 단계 목표**: one-hot 벡터를 사용하여 우도를 표현하고, 왜 정답 클래스의 확률만 남는지 수식으로 보입니다.
 
-모든 데이터에 대한 로그 우도:
+**다항분포의 확률**:
 
-$$\log L(\theta) = \sum_{i=1}^n \log P(y_i | x_i, \theta) = \sum_{i=1}^n \log \hat{p}_{i,k_i^*}$$
+실제 레이블 $y_i$가 나올 확률 (다항분포, 한 번 시행):
 
-여기서 $k_i^*$는 $i$번째 데이터의 정답 클래스예요.
+$$P(y_i \mid x_i, \theta) = \prod_{k=1}^K \hat{p}_{i,k}^{y_{i,k}}$$
 
-one-hot 인코딩을 사용하면:
+**수식 전개**:
 
-$$\log L(\theta) = \sum_{i=1}^n \sum_{k=1}^K y_{i,k} \log \hat{p}_{i,k}$$
+정답 클래스가 $k^*$라고 하면, $y_{i,k^*} = 1$, $y_{i,k} = 0$ ($k \neq k^*$)입니다:
 
-**이유**: 
-- 정답 클래스 $k^*$: $y_{i,k^*} = 1$이므로 $1 \cdot \log(\hat{p}_{i,k^*}) = \log(\hat{p}_{i,k^*})$
-- 나머지 클래스 $k \neq k^*$: $y_{i,k} = 0$이므로 $0 \cdot \log(\hat{p}_{i,k}) = 0$
-- 따라서 합은 정답 클래스의 로그 확률만 남습니다: $\sum_{k=1}^K y_{i,k} \log \hat{p}_{i,k} = \log \hat{p}_{i,k^*}$
+$$P(y_i \mid x_i, \theta) = \hat{p}_{i,1}^{y_{i,1}} \times \hat{p}_{i,2}^{y_{i,2}} \times \cdots \times \hat{p}_{i,k^*}^{y_{i,k^*}} \times \cdots \times \hat{p}_{i,K}^{y_{i,K}}$$
+
+$$= \hat{p}_{i,1}^{0} \times \hat{p}_{i,2}^{0} \times \cdots \times \hat{p}_{i,k^*}^{1} \times \cdots \times \hat{p}_{i,K}^{0}$$
+
+$$= 1 \times 1 \times \cdots \times \hat{p}_{i,k^*} \times \cdots \times 1 = \hat{p}_{i,k^*}$$
+
+**핵심 통찰**:
+- $y_{i,k} = 0$인 항은 $(\hat{p}_{i,k})^0 = 1$이 되어 사라집니다.
+- $y_{i,k} = 1$인 정답 클래스만 $(\hat{p}_{i,k^*})^1 = \hat{p}_{i,k^*}$로 남습니다.
+- 따라서 **우도는 정답 클래스의 예측 확률**과 같습니다.
+
+#### Step 4: 로그우도 합
+
+**이번 단계 목표**: 모든 데이터에 대한 로그우도를 구하고, one-hot을 사용한 표현으로 변환합니다.
+
+**i.i.d. 가정**:
+모든 데이터 포인트 $(x_i, y_i)$는 서로 **독립이고 동일한 분포**를 따릅니다:
+
+$$P(y_1, \ldots, y_n \mid x_1, \ldots, x_n, \theta) = \prod_{i=1}^n P(y_i \mid x_i, \theta)$$
+
+**로그우도**:
+
+$$\ell(\theta) = \log L(\theta) = \sum_{i=1}^n \log P(y_i \mid x_i, \theta) = \sum_{i=1}^n \log \hat{p}_{i,k_i^*}$$
+
+여기서 $k_i^*$는 $i$번째 데이터의 정답 클래스입니다.
+
+**one-hot 표현으로 변환**:
+
+$$\ell(\theta) = \sum_{i=1}^n \sum_{k=1}^K y_{i,k} \log \hat{p}_{i,k}$$
+
+**왜 이 표현이 동일한가?**
+
+정답 클래스 $k^*$에서만 $y_{i,k^*} = 1$이고, 나머지는 $y_{i,k} = 0$이므로:
+
+$$\sum_{k=1}^K y_{i,k} \log \hat{p}_{i,k} = y_{i,1} \log \hat{p}_{i,1} + y_{i,2} \log \hat{p}_{i,2} + \cdots + y_{i,k^*} \log \hat{p}_{i,k^*} + \cdots + y_{i,K} \log \hat{p}_{i,K}$$
+
+$$= 0 \cdot \log \hat{p}_{i,1} + 0 \cdot \log \hat{p}_{i,2} + \cdots + 1 \cdot \log \hat{p}_{i,k^*} + \cdots + 0 \cdot \log \hat{p}_{i,K}$$
+
+$$= \log \hat{p}_{i,k^*}$$
+
+**핵심 통찰**:
+- $y_{i,k} = 0$인 항은 $0 \cdot \log \hat{p}_{i,k} = 0$이 되어 사라집니다.
+- $y_{i,k} = 1$인 정답 클래스만 $1 \cdot \log \hat{p}_{i,k^*} = \log \hat{p}_{i,k^*}$로 남습니다.
+- 따라서 **합은 정답 좌표의 $\log \hat{p}_{i,k^*}$만 남습니다**.
+- 이것이 "one-hot이면 정답 확률만 남는다"의 **수식적 이유**입니다.
 
 **참고**: 수학적으로 $0 \cdot \log(0) = 0$으로 정의합니다 (극한값).
 
-#### Step 4: 손실 함수로 변환
+> **📌 수치안정성**
+> 
+> 실전에서는 $\log(0)$ 방지를 위해 다음을 사용합니다:
+> - **$\varepsilon$ 클리핑**: $\hat{p} \gets \text{clip}(\hat{p}, \varepsilon, 1)$ (예: $\varepsilon = 10^{-8}$)
+> - **log-softmax**: $\log(\text{softmax}(z))$를 직접 계산하여 수치적으로 안정적
 
-**MLE 목표**: $\hat{\theta} = \arg\max_\theta \log L(\theta)$
+#### Step 5: 손실로 전환 (최소화 관례)
+
+**이번 단계 목표**: 최대화 문제를 최소화 문제로 변환하여 CrossEntropy Loss를 도출합니다.
+
+**MLE 목표**: $\hat{\theta} = \arg\max_\theta \ell(\theta)$
 
 최대화 문제를 최소화 문제로 변환:
 
@@ -1130,6 +1317,19 @@ $$\text{CrossEntropy} = -\frac{1}{n}\sum_{i=1}^n \sum_{k=1}^K y_{i,k} \log \hat{
 - 로그 우도를 최대화 = CrossEntropy를 최소화
 - 정답 클래스의 예측 확률이 높을수록 로그 우도가 커지고 손실이 감소
 - 이것이 정보 이론의 CrossEntropy와 동일한 형태!
+
+> **📌 클래스 불균형 & 정규화**
+> 
+> Cross-Entropy는 올바른 스코어링 규칙이지만, 클래스 불균형일 때 문제가 발생할 수 있습니다:
+> - **가중 Cross-Entropy**: 각 클래스에 가중치를 부여하여 불균형 보정
+> - **Focal Loss**: 쉬운 샘플의 기여도를 낮춰 어려운 샘플에 집중
+> 
+> **캘리브레이션**: CE를 최소화해도 확률이 과신/과소신일 수 있습니다. **온도보정 (temperature scaling)**으로 예측 확률의 신뢰도를 조정할 수 있습니다.
+
+**요약**:
+- 다항분포 가정 → MLE → CrossEntropy Loss
+- one-hot 인코딩 덕분에 정답 클래스의 확률만 남아 손실이 단순해짐
+- 이것이 분류 문제에서 CrossEntropy를 사용하는 이론적 근거
 
 ### 2.3.6 정보 이론과 MLE의 연결
 
@@ -1278,3 +1478,25 @@ $H(p)$는 상수이므로:
 - 세 가지 관점이 모두 **수학적으로 동일한 목표**
 - 이것이 CrossEntropy Loss가 분류 문제의 표준인 이유
 - 통계학 (MLE)과 정보 이론이 완벽하게 일치!
+
+#### 확장: 베이지안 시각 (간단히)
+
+**MLE vs MAP (Maximum A Posteriori)**:
+
+- **MLE**: 순수 데이터만 사용. $\hat{\theta}_{\text{MLE}} = \arg\max_\theta L(\theta \mid \mathcal{D})$
+- **MAP**: 데이터 + 사전 정보 사용. $\hat{\theta}_{\text{MAP}} = \arg\max_\theta P(\theta \mid \mathcal{D}) = \arg\max_\theta [L(\theta \mid \mathcal{D}) \cdot P(\theta)]$
+
+**정규화와의 연결**:
+
+- **정규 prior (Normal Prior) → 리지 회귀 (Ridge Regression)**: $L_2$ 정규화
+  - 사전 분포: $\theta \sim \mathcal{N}(0, \lambda^{-1}I)$
+  - 손실: $\text{Loss} = \text{NLL}(\theta) + \lambda \|\theta\|_2^2$
+  
+- **라플라스 prior (Laplace Prior) → 라쏘 회귀 (Lasso Regression)**: $L_1$ 정규화
+  - 사전 분포: $\theta \sim \text{Laplace}(0, \lambda^{-1})$
+  - 손실: $\text{Loss} = \text{NLL}(\theta) + \lambda \|\theta\|_1$
+
+**의미**:
+- MLE는 데이터만 믿고 파라미터를 추정합니다.
+- MAP는 사전 정보(정규화)를 추가하여 과적합을 방지합니다.
+- 정규화는 베이지안 관점에서 사전 분포를 가정하는 것과 같습니다.
