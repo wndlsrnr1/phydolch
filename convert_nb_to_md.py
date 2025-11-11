@@ -2,25 +2,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Sequence
 
 
-TARGET_NOTEBOOKS: list[Path] = [
-    Path("/home/jik/projects/study/pytorch/docs/topics/00a_Math_00_Roadmap.ipynb"),
-    Path("/home/jik/projects/study/pytorch/docs/topics/00a_Math_01_Quick_Start.ipynb"),
-    Path("/home/jik/projects/study/pytorch/docs/topics/00a_Math_02_Linear_Algebra_Foundations.ipynb"),
-    Path("/home/jik/projects/study/pytorch/docs/topics/00a_Math_03_Calculus_Foundations.ipynb"),
-    Path("/home/jik/projects/study/pytorch/docs/topics/00a_Math_04_Probability_Statistics_01_Introduction.ipynb"),
-    Path("/home/jik/projects/study/pytorch/docs/topics/00a_Math_04_Probability_Statistics_02a_Probability_Basics.ipynb"),
-    Path("/home/jik/projects/study/pytorch/docs/topics/00a_Math_04_Probability_Statistics_02b_Probability_Distributions.ipynb"),
-    Path("/home/jik/projects/study/pytorch/docs/topics/00a_Math_04_Probability_Statistics_02c_Information_Theory_MLE.ipynb"),
-    Path("/home/jik/projects/study/pytorch/docs/topics/00a_Math_04_Probability_Statistics_02d_Loss_Functions.ipynb"),
-    Path("/home/jik/projects/study/pytorch/docs/topics/00a_Math_04_Probability_Statistics_03_PyTorch_Implementation.ipynb"),
-    Path("/home/jik/projects/study/pytorch/docs/topics/00a_Math_04_Probability_Statistics_04_Summary.ipynb"),
-    Path("/home/jik/projects/study/pytorch/docs/topics/00b_Probability_Statistics_Foundations.ipynb"),
-]
-
-OUTPUT_DIR = Path("/home/jik/projects/study/pytorch/docs/math")
+SOURCE_ROOT = Path("/home/jik/study/pytorch/jupyter_notebook_ver")
+SOURCE_DIR = SOURCE_ROOT / "pytorch"
+EXTRA_NOTEBOOKS: Sequence[Path] = [SOURCE_ROOT / "파이토치.ipynb"]
+OUTPUT_DIR = Path("/home/jik/study/pytorch/pytorch")
 
 
 def load_notebook(path: Path) -> dict:
@@ -37,17 +25,21 @@ def format_code_cell(cell: dict) -> list[str]:
     source = "".join(cell.get("source", []))
     lines: list[str] = ["```python", source.rstrip("\n"), "```"]
 
-    output_lines = extract_outputs(cell.get("outputs", []))
-    if output_lines:
+    text_outputs, media_outputs = extract_outputs(cell.get("outputs", []))
+    if text_outputs:
         lines.append("```text")
-        lines.extend(output_lines)
+        lines.extend(text_outputs)
         lines.append("```")
+    if media_outputs:
+        lines.extend(media_outputs)
 
     return lines
 
 
-def extract_outputs(outputs: Iterable[dict]) -> list[str]:
-    captured: list[str] = []
+def extract_outputs(outputs: Iterable[dict]) -> tuple[list[str], list[str]]:
+    text_captured: list[str] = []
+    media_captured: list[str] = []
+    media_index = 1
 
     for output in outputs or []:
         otype = output.get("output_type")
@@ -56,21 +48,43 @@ def extract_outputs(outputs: Iterable[dict]) -> list[str]:
             text = output.get("text", "")
             if isinstance(text, list):
                 for item in text:
-                    captured.extend(item.rstrip("\n").splitlines())
+                    text_captured.extend(item.rstrip("\n").splitlines())
             elif isinstance(text, str) and text:
-                captured.extend(text.rstrip("\n").splitlines())
+                text_captured.extend(text.rstrip("\n").splitlines())
         elif otype in {"execute_result", "display_data"}:
             data = output.get("data", {})
             text_data = data.get("text/plain")
             if isinstance(text_data, list):
-                captured.extend([line.rstrip("\n") for line in text_data])
+                text_captured.extend([line.rstrip("\n") for line in text_data])
             elif isinstance(text_data, str):
-                captured.extend(text_data.rstrip("\n").splitlines())
+                text_captured.extend(text_data.rstrip("\n").splitlines())
+
+            image_data = None
+            mime_type = None
+            if "image/png" in data:
+                image_data = data.get("image/png")
+                mime_type = "image/png"
+            elif "image/jpeg" in data:
+                image_data = data.get("image/jpeg")
+                mime_type = "image/jpeg"
+
+            if image_data and mime_type:
+                if isinstance(image_data, list):
+                    payload = "".join(image_data)
+                else:
+                    payload = image_data
+                payload = payload.strip()
+                if payload:
+                    media_captured.append(
+                        f"![output_{media_index}]"
+                        f"(data:{mime_type};base64,{payload})"
+                    )
+                    media_index += 1
         elif otype == "error":
             traceback = output.get("traceback", [])
-            captured.extend([line.rstrip("\n") for line in traceback])
+            text_captured.extend([line.rstrip("\n") for line in traceback])
 
-    return captured
+    return text_captured, media_captured
 
 
 def notebook_to_markdown(nb_data: dict) -> str:
@@ -105,12 +119,34 @@ def convert_notebook(path: Path, output_dir: Path) -> Path:
     return output_path
 
 
+def discover_notebooks() -> list[Path]:
+    candidates: list[Path] = list(SOURCE_DIR.glob("*.ipynb"))
+    for extra in EXTRA_NOTEBOOKS:
+        if extra.exists() and extra.suffix == ".ipynb":
+            candidates.append(extra)
+
+    seen: set[str] = set()
+    notebooks: list[Path] = []
+    for notebook in sorted(candidates):
+        identifier = notebook.resolve().as_posix()
+        if identifier in seen:
+            continue
+        seen.add(identifier)
+        notebooks.append(notebook)
+
+    return notebooks
+
+
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    for notebook in TARGET_NOTEBOOKS:
-        if not notebook.exists():
-            raise FileNotFoundError(f"Notebook not found: {notebook}")
+    notebooks = discover_notebooks()
+    if not notebooks:
+        raise FileNotFoundError(
+            f"No notebooks found in {SOURCE_DIR} or extras: {EXTRA_NOTEBOOKS}"
+        )
+
+    for notebook in notebooks:
         convert_notebook(notebook, OUTPUT_DIR)
 
 

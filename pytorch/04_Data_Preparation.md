@@ -1,0 +1,180 @@
+# 04. 데이터 준비
+
+이번 단원에서는 모델 학습을 위한 데이터 준비 과정을 배워보겠습니다.
+
+## 학습 목표
+- Dataset과 DataLoader의 개념
+- 데이터 전처리와 변환(transforms)
+- 배치 처리의 의미
+- 데이터 시각화
+
+## 이 단원을 배우기 전에
+
+**이전 단원 (03) 복습: backward(), requires_grad의 의미를 이해하셨나요?**
+
+## 이 단원 다음에는
+
+**다음 단원 (05): 데이터를 준비했으니, 이제 신경망 구조를 설계하는 방법을 배워봅시다.**
+
+## 왜 이 단원이 필요한가?
+
+데이터는 머신러닝의 생명입니다. 모델은 데이터가 없으면 학습할 수 없고, 좋은 데이터 없이는 좋은 모델을 만들 수 없습니다.
+
+- **데이터셋 구축**: 필요 데이터 수집 및 정리
+- **전처리**: 모델이 이해할 수 있는 형태로 변환
+- **배치 처리**: 효율적인 학습을 위한 데이터 묶음 생성
+- **증강(Augmentation)**: 적은 데이터로 더 많은 정보 만들기
+
+### 왜 DataLoader가 필요한가?
+
+**상황**: 60,000개의 MNIST 이미지가 있다고 가정
+
+**문제**: 한 번에 하나씩 처리하면?
+```python
+# 비효율적!
+for i in range(60000):
+    image = load_image(i)
+    prediction = model(image)  # 한 번씩 처리
+```
+- 60,000번의 forward pass → 느림
+- GPU 활용 불가
+
+**해결**: 배치로 묶어서 처리
+```python
+# 효율적!
+for batch in dataloader:  # batch_size=64
+    images = batch  # 64개를 한 번에
+    predictions = model(images)  # GPU 병렬 처리!
+```
+- 938번의 배치 → 빠름
+- GPU가 64개를 동시에 계산
+
+**DataLoader는 배치 생성 + 메모리 효율 + 병렬 처리의 핵심입니다!**
+
+이 단원에서 배우는 것은 모든 프로젝트에서 필수적입니다.
+
+토치비전(`torchvision`)은 파이토치에서 제공하는 데이터셋들이 모여있는 패키지
+
+- `transforms`: 전처리할 때 사용하는 메소드 (https://pytorch.org/docs/stable/torchvision/transforms.html)
+- `transforms`에서 제공하는 클래스 이외는 일반적으로 클래스를 따로 만들어 전처리 단계를 진행
+
+```python
+
+```
+
+`DataLoader`의 인자로 들어갈 `transform`을 미리 정의할 수 있고, `Compose`를 통해 리스트 안에 순서대로 전처리 진행
+
+`ToTensor`()를 하는 이유는 `torchvision`이 PIL Image 형태로만 입력을 받기 때문에 데이터 처리를 위해서 Tensor형으로 변환 필요
+
+```python
+
+```
+
+```python
+
+```
+
+`DataLoader`는 데이터 전체를 보관했다가 실제 모델 학습을 할 때 `batch_size` 크기만큼 데이터를 가져옴
+
+## 데이터 시각화 - Matplotlib
+
+PyTorch 데이터셋의 임의 샘플 이미지를 추출해 화면에 표시하는 방법입니다.
+
+> matplotlib
+
+- PyTorch 데이터셋에서 임의의 샘플 이미지를 추출해서 화면에 시각화 하는 코드
+
+- PyTorch나 Numpy에서 얻은 데이터를 눈으로 확인할때 사용한다.
+
+> pyplot
+
+- matplotlib의 submodule.
+- 단계별로 그리기용 도화지 처럼 다루는 기능을 제공한다. 
+
+예시: pyplot.plot(), pyplot.imshow(), pyplot.show()
+
+```python
+import matplotlib.pyplot as pyplot
+```
+
+```python
+figure = pyplot.figure(figsize=(12, 6))
+```
+```text
+<Figure size 1200x600 with 0 Axes>
+```
+
+- 도화지의 추상화. 즉 하나의 그림 전체를 의미한다.
+- 도화지의 크기를 "인치 단위"로 설정한다.
+
+- (12, 6) 가로 12인치 세로 6인치
+- 큰 이미지를 여러 개 배치할 때 넓게 보이도록 하는 설정.
+
+```python
+# 4 x 2 의 이미지 배치 하기 위해서
+cols, rows = 4, 2
+
+# 너비 만큼의 크기 생성
+for i in range(1, cols * rows + 1):
+
+    # 사이즈 만큼에서 랜덤인덱스를 뽑는다.
+    sample_idx = torch.randint(len(dataset), size=(1,)).item()
+
+    # 배열 크기에서 사이즈를 가져온다. 
+    img, label = trainset[sample_idx]
+
+    # 전체 이미지에 나눈 이미지를 넣는다. rows, cols 로 나눈 이미지에 i 번째에 지금의 이미지를 할당
+    figure.add_subplot(rows, cols, i)
+
+    # 라벨 이름을 표시
+    pyplot.title(label)
+
+    # 눈금선을 숨김
+    pyplot.axis("off")
+
+    # 이미지를 화면에 표시
+    pyplot.imshow(img.squeeze(), cmap="gray")
+
+    # 실제로 이미지를 화면에 띄움
+    pyplot.show()
+```
+
+
+## 연습 문제
+
+### 문제 1: Dataset 클래스
+CSV 파일을 읽어 PyTorch Dataset을 만드는 클래스를 작성하세요.
+
+### 문제 2: DataLoader
+shuffle=True와 False의 차이점을 코드로 설명하세요.
+
+### 문제 3: Transform
+이미지를 224x224로 리사이즈하고 정규화하는 transform을 만드세요.
+
+### 문제 4: 시각화
+배치 데이터에서 랜덤으로 9개 이미지를 그리드로 시각화하세요.
+
+### 문제 5: 데이터 분할
+전체 데이터를 70:20:10으로 train/val/test로 나누는 코드를 작성하세요.
+
+## 핵심 요약
+
+이번 단원에서 우리는 다음을 배웠습니다:
+
+### 1. 데이터 파이프라인
+- Dataset: 데이터 샘플과 레이블 저장
+- DataLoader: 배치 생성, 셔플, 멀티프로세싱 제공
+
+### 2. 배치 처리의 중요성
+- 한 번에 여러 샘플 처리하여 효율성 향상
+- GPU 활용 극대화
+
+### 3. 데이터 전처리
+- Transforms: 이미지 변환, 정규화 등
+- 훈련/테스트 데이터셋 분리
+
+### 4. 시각화
+- Matplotlib으로 데이터 확인
+- 이미지와 레이블을 시각적으로 검증
+
+다음 단원에서는 신경망 구조를 배워보겠습니다.
